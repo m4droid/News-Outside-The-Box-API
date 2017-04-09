@@ -77,17 +77,16 @@ es.indices.put_mapping(
 def news_search():
     if request.method == 'POST':
         data = {
-            'url': request.json.get('header') or '',
+            'url': request.json.get('url') or '',
             'header': request.json.get('header') or '',
             'subheader': request.json.get('subheader') or ''
         }
     else:
         data = {
-            'url': request.args.get('header') or '',
+            'url': request.args.get('url') or '',
             'header': request.args.get('header') or '',
             'subheader': request.args.get('subheader') or ''
         }
-
 
     data['header'] = data['header'].replace('\r\n', '').replace('\n', '')
     data['subheader'] = data['subheader'].replace('\r\n', '').replace('\n', '')
@@ -101,6 +100,7 @@ def news_search():
             data['source'] = uri.netloc.replace('www.', '')
     if 'source' not in data:
         data['source'] = None
+
 
     es_query = {
         "query": {

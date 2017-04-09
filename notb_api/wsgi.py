@@ -12,6 +12,13 @@ app = Flask(__name__)
 INDEX = 'totb'
 DOCUMENTS = 'news'
 
+THE_OTHER_SIDE = {
+    'www.emol.com': [
+        'www.asdf.com',
+        'www.elmostrador.cl',
+    ]
+}
+
 
 def analyzer_mapper(analyzer):
     return {
@@ -48,25 +55,32 @@ def news_search():
 
     es_query = {
         "query": {
-            "more_like_this": {
-                "fields": ["header", "subheader"],
-                "like": ' '.join([data['header'], data['subheader']]).strip(),
-                "min_term_freq": 1,
-                "min_doc_freq": 1
+            "bool": {
+                "must": [
+                    {
+                        "more_like_this": {
+                            "fields": ["header", "subheader"],
+                            "like": ' '.join([data['header'], data['subheader']]).strip(),
+                            "min_term_freq": 1,
+                            "min_doc_freq": 1
+                        }
+                    },
+                ],
+                "filter": {
+                    "bool": {
+                        "should": []
+                    }
+                }
             }
         }
     }
 
-    es_response = es.search(
-        index=INDEX,
-        doc_type=DOCUMENTS,
-        body=es_query,
-    )
+    es_query['query']['bool']['filter']['bool']['should'] = [
+        {"term": {"url": source}} for source in THE_OTHER_SIDE.get('www.emol.com') or []
+    ]
 
-    return Response(
-        json.dumps(
-            es_response['hits']['hits']
-        ),
-        status=200,
-        mimetype='application/json',
-    )
+    es_response = es.search(index=INDEX, doc_type=DOCUMENTS, body=es_query)
+
+    news = es_response['hits']['hits']
+
+    return Response(json.dumps(news), status=200, mimetype='application/json')

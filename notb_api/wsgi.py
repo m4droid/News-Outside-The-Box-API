@@ -15,7 +15,7 @@ INDEX = 'totb'
 DOCUMENTS = 'news'
 
 LEFT_EVIL = [
-    'adnradio.cl',
+    'elmostrador.cl',
     'theclinic.cl',
     'elciudadano.cl'
 ]
@@ -23,22 +23,10 @@ LEFT_EVIL = [
 RIGHT_EVIL = [
     'emol.com',
     'latercera.com',
-    'impresa.lasegunda.com',
-    't13.cl',
-    'mega.cl',
-    'lahora.cl',
-    'publimetro.cl',
-    'eldinamo.cl',
 ]
 
 NEUTRAL_EVIL = [
-    'cooperativa.cl',
-    'terra.cl',
-    'cnnchile.com',
-    'publimetro.cl',
-    'df.cl',
-    'pulso.cl',
-    'ciperchile.cl',
+    'cooperativa.cl'
 ]
 
 THE_OTHER_SIDE = {s: list(RIGHT_EVIL) for s in LEFT_EVIL}
@@ -68,30 +56,22 @@ DOCUMENT_MAPPING = {
 es.indices.put_mapping(
     index=INDEX,
     doc_type=DOCUMENTS,
-    body=DOCUMENT_MAPPING,
-    ignore=[400]
+    body=DOCUMENT_MAPPING
 )
 
 
-@app.route('/news', methods=['GET', 'POST'])
+@app.route('/news', methods=['POST'])
 def news_search():
-    if request.method == 'POST':
-        data = {
-            'url': request.json.get('url') or '',
-            'header': request.json.get('header') or '',
-            'subheader': request.json.get('subheader') or ''
-        }
-    else:
-        data = {
-            'url': request.args.get('url') or '',
-            'header': request.args.get('header') or '',
-            'subheader': request.args.get('subheader') or ''
-        }
+    data = {
+        'url': request.json.get('url') or '',
+        'header': request.json.get('header') or '',
+        'subheader': request.json.get('subheader') or ''
+    }
 
-    data['header'] = data['header'].replace('\r\n', '').replace('\n', '')
-    data['subheader'] = data['subheader'].replace('\r\n', '').replace('\n', '')
+    data['header'] = data['header'].replace('\r\n', '')
+    data['subheader'] = data['subheader'].replace('\r\n', '')
 
-    news_headers = [data.get('header') or '', data.get('subheader') or ''] if data is not None else []
+    news_headers = [data.get('header'), data.get('subheader')] if data is not None else []
 
     if data.get('url') is not None:
         matcher = re.match(r'https:\/\/l\.facebook.com\/l\.php\?u=(.*)&.*$', data['url'])
@@ -100,7 +80,6 @@ def news_search():
             data['source'] = uri.netloc.replace('www.', '')
     if 'source' not in data:
         data['source'] = None
-
 
     es_query = {
         "query": {
@@ -125,11 +104,11 @@ def news_search():
     }
 
     es_query['query']['bool']['filter']['bool']['should'] = [
-        {"term": {"url": source}} for source in (THE_OTHER_SIDE.get(data['source']) or [])
+        {"term": {"source": source}} for source in THE_OTHER_SIDE.get(data['source'], [])
     ]
 
     es_response = es.search(index=INDEX, doc_type=DOCUMENTS, body=es_query)
 
-    news = es_response['hits']['hits']
+    news = [h for h in es_response['hits']['hits'] if 'header' in h['_source']]
 
     return Response(json.dumps(news), status=200, mimetype='application/json')

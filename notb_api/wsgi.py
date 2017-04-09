@@ -15,12 +15,9 @@ INDEX = 'totb'
 DOCUMENTS = 'news'
 
 LEFT_EVIL = [
-    'lanacion.cl',
     'adnradio.cl',
-    '24horas.cl',
     'theclinic.cl',
-    'biobiochile.cl',
-    'noticias.terra.cl',
+    'elciudadano.cl'
 ]
 
 RIGHT_EVIL = [
@@ -72,19 +69,28 @@ es.indices.put_mapping(
     index=INDEX,
     doc_type=DOCUMENTS,
     body=DOCUMENT_MAPPING,
+    ignore=[400]
 )
 
 
 @app.route('/news', methods=['GET', 'POST'])
 def news_search():
     if request.method == 'POST':
-        data = request.json
+        data = {
+            'url': request.json.get('header') or '',
+            'header': request.json.get('header') or '',
+            'subheader': request.json.get('subheader') or ''
+        }
     else:
         data = {
             'url': request.args.get('header') or '',
             'header': request.args.get('header') or '',
             'subheader': request.args.get('subheader') or ''
         }
+
+
+    data['header'] = data['header'].replace('\r\n', '').replace('\n', '')
+    data['subheader'] = data['subheader'].replace('\r\n', '').replace('\n', '')
 
     news_headers = [data.get('header') or '', data.get('subheader') or ''] if data is not None else []
 
